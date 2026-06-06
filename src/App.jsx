@@ -74,11 +74,11 @@ function App() {
   if (!user) {
     return (
       <div className="auth-choices">
-        <div style={{ width: "48%" }}>
+        <div className="auth-choice">
           <Login setLoggedIn={(admin) => setUser({ role: "admin", ...admin })} />
         </div>
 
-        <div style={{ width: "48%" }}>
+        <div className="auth-choice">
           <MemberAuth onMemberLogin={(member) => setUser({ role: "member", ...member })} />
         </div>
       </div>

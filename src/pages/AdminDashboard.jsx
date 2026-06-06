@@ -452,11 +452,11 @@ function AdminDashboard({ user, onLogout }) {
                 <tbody>
                   {members.map((member) => (
                     <tr key={member.id}>
-                      <td>{member.name}</td>
-                      <td>{member.email}</td>
-                      <td>{member.phone || "-"}</td>
-                      <td>₹{member.monthlyFee}</td>
-                      <td>{member.active ? "Active" : "Inactive"}</td>
+                      <td data-label="Name">{member.name}</td>
+                      <td data-label="Email">{member.email}</td>
+                      <td data-label="Phone">{member.phone || "-"}</td>
+                      <td data-label="Monthly Fee">₹{member.monthlyFee}</td>
+                      <td data-label="Status">{member.active ? "Active" : "Inactive"}</td>
                     </tr>
                   ))}
                 </tbody>

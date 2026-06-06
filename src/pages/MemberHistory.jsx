@@ -148,23 +148,23 @@ section{margin-bottom:24px;}
             <tbody>
               {payments.map((payment) => (
                 <tr key={payment.id}>
-                  <td>{payment.month}</td>
-                  <td>₹{payment.amount}</td>
-                  <td>{payment.status}</td>
-                  <td>{payment.transactionId || "-"}</td>
-                  <td>
+                  <td data-label="Month">{payment.month}</td>
+                  <td data-label="Amount">₹{payment.amount}</td>
+                  <td data-label="Status">{payment.status}</td>
+                  <td data-label="Transaction ID">{payment.transactionId || "-"}</td>
+                  <td data-label="Payment Date">
                     {payment.paymentDate
                       ? new Date(payment.paymentDate).toLocaleString()
                       : "-"}
                   </td>
-                  <td>
+                  <td data-label="Method">
                     {payment.paymentGateway === "qr_upi"
                       ? "UPI QR"
                       : payment.paymentGateway === "manual"
                       ? "Manual"
                       : payment.paymentGateway || "-"}
                   </td>
-                  <td>
+                  <td data-label="Receipt">
                     {payment.screenshotData ? (
                       <button
                         className="secondary-button"
@@ -176,7 +176,7 @@ section{margin-bottom:24px;}
                       "-"
                     )}
                   </td>
-                  <td>
+                  <td data-label="Invoice">
                     <button
                       className="secondary-button"
                       onClick={() => downloadInvoice(payment)}

@@ -97,9 +97,9 @@ function Defaulters({ month }) {
             <tbody>
               {defaulters.map((member) => (
                 <tr key={member.id}>
-                  <td>{member.name}</td>
-                  <td>{member.email}</td>
-                  <td>₹{member.monthlyFee}</td>
+                  <td data-label="Name">{member.name}</td>
+                  <td data-label="Email">{member.email}</td>
+                  <td data-label="Fee">₹{member.monthlyFee}</td>
                 </tr>
               ))}
             </tbody>
