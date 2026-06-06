@@ -9,11 +9,17 @@ import {
   addMember,
   getMembers
 } from "../services/memberService";
+import {
+  addPayment,
+  getPayments
+} from "../services/paymentService";
 import { getUpiId, setUpiId, getAdminEmail, setAdminEmail } from "../services/settingsService";
 
-function AdminDashboard() {
+function AdminDashboard({ user, onLogout }) {
 
   const [page, setPage] = useState("dashboard");
+  const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [processing, setProcessing] = useState(false);
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -26,6 +32,56 @@ function AdminDashboard() {
   const loadMembers = async () => {
     const data = await getMembers();
     setMembers(data);
+  };
+
+  const createNextMonthDueRecords = async () => {
+    setProcessing(true);
+    try {
+      const allMembers = await getMembers();
+      const allPayments = await getPayments();
+      const today = new Date();
+      const nextMonthDate = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+      const nextMonth = nextMonthDate.toISOString().slice(0, 7);
+      const dueDate = new Date(nextMonthDate.getFullYear(), nextMonthDate.getMonth(), 5).toISOString();
+      const existingMemberIds = new Set(
+        allPayments
+          .filter((payment) => payment.month === nextMonth)
+          .map((payment) => payment.memberId)
+      );
+
+      const memberRecords = allMembers.filter(
+        (member) => !existingMemberIds.has(member.id)
+      );
+
+      if (memberRecords.length === 0) {
+        alert(`All members already have a due record for ${nextMonth}.`);
+        return;
+      }
+
+      for (const member of memberRecords) {
+        await addPayment({
+          memberId: member.id,
+          authUid: member.authUid || null,
+          memberName: member.name,
+          amount: Number(member.monthlyFee || 0),
+          transactionId: "",
+          month: nextMonth,
+          status: "Pending",
+          paymentDate: null,
+          paymentGateway: "due",
+          dueDate,
+          screenshotData: null,
+          screenshotFileName: null
+        });
+      }
+
+      alert(`Pending payment records created for ${memberRecords.length} member(s) for ${nextMonth}.`);
+    } catch (err) {
+      console.error("Failed to create due records", err);
+      alert("Failed to generate due records. See console for details.");
+    } finally {
+      setProcessing(false);
+    }
   };
 
   useEffect(() => {
@@ -71,53 +127,94 @@ function AdminDashboard() {
   return (
     <div className="app-shell">
 
-      <div className="topbar">
-        <div>
-          <p className="eyebrow">YouTube Premium Family</p>
-          <h1>Family Tracker</h1>
-          <p className="subtitle">
-            Manage members, payments, defaulters, and reminders from one polished dashboard.
-          </p>
+      <div className="topbar" style={{ flexDirection: "column", alignItems: "stretch" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 24, flexWrap: "wrap" }}>
+          <div>
+            <p className="eyebrow">YouTube Premium Family</p>
+            <h1>Family Tracker</h1>
+            <p className="subtitle">
+              Manage members, payments, defaulters, and reminders from one polished dashboard.
+            </p>
+            {user?.email && (
+              <p style={{ marginTop: 8, color: "#666" }}>
+                Signed in as <strong>{user.email}</strong>
+              </p>
+            )}
+          </div>
+
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "flex-end", alignItems: "center" }}>
+            <button
+              className={`secondary-button ${page === "dashboard" ? "active" : ""}`}
+              onClick={() => setPage("dashboard")}
+            >
+              Dashboard
+            </button>
+            <button
+              className={`secondary-button ${page === "payments" ? "active" : ""}`}
+              onClick={() => setPage("payments")}
+            >
+              Record Payment
+            </button>
+            <button
+              className={`secondary-button ${page === "history" ? "active" : ""}`}
+              onClick={() => setPage("history")}
+            >
+              Payment History
+            </button>
+            <button
+              className={`secondary-button ${page === "defaulters" ? "active" : ""}`}
+              onClick={() => setPage("defaulters")}
+            >
+              Defaulters
+            </button>
+            <button
+              className={`secondary-button ${page === "reminders" ? "active" : ""}`}
+              onClick={() => setPage("reminders")}
+            >
+              Reminders
+            </button>
+          </div>
         </div>
 
-        <div className="button-group">
-          <button
-            className={`secondary-button ${page === "dashboard" ? "active" : ""}`}
-            onClick={() => setPage("dashboard")}
-          >
-            Dashboard
-          </button>
-          <button
-            className={`secondary-button ${page === "payments" ? "active" : ""}`}
-            onClick={() => setPage("payments")}
-          >
-            Record Payment
-          </button>
-          <button
-            className={`secondary-button ${page === "history" ? "active" : ""}`}
-            onClick={() => setPage("history")}
-          >
-            Payment History
-          </button>
-          <button
-            className={`secondary-button ${page === "defaulters" ? "active" : ""}`}
-            onClick={() => setPage("defaulters")}
-          >
-            Defaulters
-          </button>
-          <button
-            className={`secondary-button ${page === "reminders" ? "active" : ""}`}
-            onClick={() => setPage("reminders")}
-          >
-            Reminders
-          </button>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "space-between", alignItems: "center", marginTop: 20 }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <span style={{ fontSize: "0.92rem", fontWeight: 600, color: "#444" }}>View Month</span>
+            <input
+              type="month"
+              className="input-field"
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              style={{ maxWidth: 180 }}
+            />
+          </div>
 
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <button
+              className="secondary-button"
+              onClick={createNextMonthDueRecords}
+              disabled={processing}
+            >
+              {processing ? "Generating…" : "Create next month due records"}
+            </button>
+            <button
+              className="secondary-button"
+              onClick={() => window.location.reload()}
+            >
+              Refresh
+            </button>
+            <button
+              className="secondary-button"
+              onClick={onLogout}
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </div>
 
       {page === "dashboard" && (
         <div className="dashboard-grid">
-          <DashboardSummary />
+          <DashboardSummary month={selectedMonth} />
 
           <div className="page-panel">
             <div className="panel-header">
@@ -247,11 +344,11 @@ function AdminDashboard() {
       )}
 
       {page === "history" && (
-        <PaymentHistory />
+        <PaymentHistory monthFilter={selectedMonth} />
       )}
 
       {page === "defaulters" && (
-        <Defaulters />
+        <Defaulters month={selectedMonth} />
       )}
       {page === "reminders" && (
         <ReminderGenerator />

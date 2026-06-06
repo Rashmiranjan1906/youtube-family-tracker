@@ -40,6 +40,15 @@ export const getPayments = async () => {
   return payments;
 };
 
+export const getPaymentsByMonth = async (month) => {
+  if (!month) {
+    return await getPayments();
+  }
+
+  const payments = await getPayments();
+  return payments.filter((payment) => payment.month === month);
+};
+
 export const updatePayment = async (paymentId, changes) => {
   const paymentRef = doc(db, "payments", paymentId);
   await updateDoc(paymentRef, changes);
@@ -52,12 +61,6 @@ export const deletePayment = async (paymentId) => {
 
 export const getCurrentMonthPayments = async () => {
 
-  const payments = await getPayments();
-
-  const currentMonth =
-    new Date().toISOString().slice(0, 7);
-
-  return payments.filter(
-    payment => payment.month === currentMonth
-  );
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  return await getPaymentsByMonth(currentMonth);
 };

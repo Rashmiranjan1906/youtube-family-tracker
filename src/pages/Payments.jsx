@@ -8,7 +8,7 @@ import {
 } from "../services/razorpayService";
 import { getUpiId } from "../services/settingsService";
 
-function Payments({ mode = "admin", onBack, onLogout, currentUser }) {
+function Payments({ mode = "admin", onBack, onLogout, onPaymentSaved, currentUser }) {
 
   const [members, setMembers] = useState([]);
   const [selectedMember, setSelectedMember] = useState("");
@@ -22,6 +22,8 @@ function Payments({ mode = "admin", onBack, onLogout, currentUser }) {
   const [upiId, setUpiId] = useState("");
   const [memberName, setMemberName] = useState("");
   const [step, setStep] = useState(mode === "member" ? "enter-details" : "initial");
+
+  const memberDisplayName = currentUser?.name || currentUser?.email?.split("@")[0] || "Member";
 
   useEffect(() => {
     const load = async () => {
@@ -163,6 +165,7 @@ function Payments({ mode = "admin", onBack, onLogout, currentUser }) {
       });
 
       alert("Payment recorded successfully! ✨");
+      onPaymentSaved?.();
 
       // Reset form
       if (mode === "member") {
@@ -229,6 +232,7 @@ function Payments({ mode = "admin", onBack, onLogout, currentUser }) {
       });
 
       alert("Payment Saved");
+      onPaymentSaved?.();
 
       if (mode === "member") {
         setMemberName("");
@@ -257,7 +261,7 @@ function Payments({ mode = "admin", onBack, onLogout, currentUser }) {
         <div className="panel-header">
           <p className="eyebrow">Payment Portal</p>
           <h2>💳 Make Payment</h2>
-          <p>Submit your payment for YouTube Premium Family subscription.</p>
+          <p>Hi {memberDisplayName}, welcome to YouTube Premium payment.</p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", marginTop: "12px" }}>
             {onBack && (
               <button

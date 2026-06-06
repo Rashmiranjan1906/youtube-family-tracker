@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "firebase/auth";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../services/auth";
-import { addMember } from "../services/memberService";
+import { addMember, getMembers } from "../services/memberService";
 
 function MemberAuth({ onMemberLogin }) {
   const [isSignup, setIsSignup] = useState(false);
@@ -31,7 +31,16 @@ function MemberAuth({ onMemberLogin }) {
     if (!email || !password) return alert("Fill email & password");
     try {
       const cred = await signInWithEmailAndPassword(auth, email, password);
-      onMemberLogin({ uid: cred.user.uid, email: cred.user.email });
+      const members = await getMembers();
+      const memberRecord = members.find(
+        (member) => member.authUid === cred.user.uid || member.email?.toLowerCase() === email.toLowerCase()
+      );
+      onMemberLogin({
+        uid: cred.user.uid,
+        email: cred.user.email,
+        name: memberRecord?.name,
+        memberId: memberRecord?.id
+      });
     } catch (err) {
       alert(err.message);
     }

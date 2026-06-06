@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { getMembers } from "../services/memberService";
-import { getCurrentMonthPayments } from "../services/paymentService";
+import { getPaymentsByMonth } from "../services/paymentService";
 
-function Defaulters() {
+function Defaulters({ month }) {
 
   const [defaulters, setDefaulters] = useState([]);
   const [membersCount, setMembersCount] = useState(0);
@@ -17,8 +17,7 @@ function Defaulters() {
         const members = await getMembers();
         console.log("Members:", members);
 
-        const payments =
-          await getCurrentMonthPayments();
+        const payments = await getPaymentsByMonth(month || new Date().toISOString().slice(0, 7));
         console.log("Payments:", payments);
 
         setMembersCount(members.length);
@@ -61,7 +60,7 @@ function Defaulters() {
 
     loadDefaulters();
 
-  }, []);
+  }, [month]);
 
   return (
     <div className="page-panel">

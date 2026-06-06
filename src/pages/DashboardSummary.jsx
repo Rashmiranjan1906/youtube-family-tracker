@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { getMembers } from "../services/memberService";
-import { getCurrentMonthPayments } from "../services/paymentService";
+import { getPaymentsByMonth } from "../services/paymentService";
 
-function DashboardSummary() {
+function DashboardSummary({ month }) {
 
   const [summary, setSummary] = useState({
     totalMembers: 0,
@@ -19,8 +19,7 @@ function DashboardSummary() {
 
       const members = await getMembers();
 
-      const payments =
-        await getCurrentMonthPayments();
+      const payments = await getPaymentsByMonth(month || new Date().toISOString().slice(0, 7));
 
       const totalMembers =
         members.length;
@@ -67,7 +66,7 @@ function DashboardSummary() {
 
     loadSummary();
 
-  }, []);
+  }, [month]);
 
   return (
     <div className="page-panel">
