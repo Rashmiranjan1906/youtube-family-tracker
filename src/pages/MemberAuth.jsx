@@ -4,7 +4,7 @@ import { auth } from "../services/auth";
 import { addMember, getMembers } from "../services/memberService";
 import { isValidEmail, isValidPhone } from "../utils/validation";
 
-function MemberAuth({ onMemberLogin }) {
+function MemberAuth({ onMemberLogin, embedded = false }) {
   const [isSignup, setIsSignup] = useState(false);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -59,8 +59,8 @@ function MemberAuth({ onMemberLogin }) {
 
   
 
-  return (
-    <div className="app-shell page-panel auth-panel">
+  const content = (
+    <>
       <div className="panel-header">
         <p className="eyebrow">Member Portal</p>
         <h2>{isSignup ? "Sign Up" : "Member Login"}</h2>
@@ -97,6 +97,16 @@ function MemberAuth({ onMemberLogin }) {
           {isSignup ? "Have an account? Login" : "New member? Sign up"}
         </button>
       </div>
+    </>
+  );
+
+  if (embedded) {
+    return <div className="auth-form-content">{content}</div>;
+  }
+
+  return (
+    <div className="app-shell page-panel auth-panel">
+      {content}
     </div>
   );
 }

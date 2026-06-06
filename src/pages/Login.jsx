@@ -4,7 +4,7 @@ import { auth } from "../services/auth";
 import { getAdminEmail } from "../services/settingsService";
 import { isValidEmail } from "../utils/validation";
 
-function Login({ setLoggedIn }) {
+function Login({ setLoggedIn, embedded = false }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -34,8 +34,8 @@ function Login({ setLoggedIn }) {
 
   
 
-  return (
-    <div className="app-shell page-panel auth-panel">
+  const content = (
+    <>
       <div className="panel-header">
         <p className="eyebrow">Admin Access</p>
         <h2>Admin Login</h2>
@@ -65,6 +65,16 @@ function Login({ setLoggedIn }) {
           Login
         </button>
       </div>
+    </>
+  );
+
+  if (embedded) {
+    return <div className="auth-form-content">{content}</div>;
+  }
+
+  return (
+    <div className="app-shell page-panel auth-panel">
+      {content}
     </div>
   );
 }

@@ -12,6 +12,7 @@ import MemberHistory from "./pages/MemberHistory";
 function App() {
   const [user, setUser] = useState(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
+  const [authMode, setAuthMode] = useState("admin");
   const [memberHistoryRefreshKey, setMemberHistoryRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -73,14 +74,52 @@ function App() {
 
   if (!user) {
     return (
-      <div className="auth-choices">
-        <div className="auth-choice">
-          <Login setLoggedIn={(admin) => setUser({ role: "admin", ...admin })} />
-        </div>
+      <div className="auth-page">
+        <section className="auth-hero">
+          <p className="eyebrow">YouTube Premium Family</p>
+          <h1>Family Tracker</h1>
+          <p className="subtitle">
+            Keep members, dues, receipts, and reminders in one clean place.
+          </p>
+          <div className="auth-highlights">
+            <span>Monthly dues</span>
+            <span>Payment history</span>
+            <span>Member portal</span>
+          </div>
+        </section>
 
-        <div className="auth-choice">
-          <MemberAuth onMemberLogin={(member) => setUser({ role: "member", ...member })} />
-        </div>
+        <section className="auth-card">
+          <div className="auth-tabs" aria-label="Choose login type">
+            <button
+              className={authMode === "admin" ? "active" : ""}
+              type="button"
+              onClick={() => setAuthMode("admin")}
+            >
+              Admin
+            </button>
+            <button
+              className={authMode === "member" ? "active" : ""}
+              type="button"
+              onClick={() => setAuthMode("member")}
+            >
+              Member
+            </button>
+          </div>
+
+          <div className="auth-content">
+            {authMode === "admin" ? (
+              <Login
+                embedded
+                setLoggedIn={(admin) => setUser({ role: "admin", ...admin })}
+              />
+            ) : (
+              <MemberAuth
+                embedded
+                onMemberLogin={(member) => setUser({ role: "member", ...member })}
+              />
+            )}
+          </div>
+        </section>
       </div>
     );
   }
