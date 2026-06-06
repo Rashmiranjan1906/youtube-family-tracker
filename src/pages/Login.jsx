@@ -2,14 +2,18 @@ import { useState } from "react";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { auth } from "../services/auth";
 import { getAdminEmail } from "../services/settingsService";
+import { isValidEmail } from "../utils/validation";
 
 function Login({ setLoggedIn }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const handleLogin = async () => {
+    if (!email || !password) return alert("Fill email & password");
+    if (!isValidEmail(email)) return alert("Please enter a valid email address");
+
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
 
       // Ensure this user matches configured admin email
       const adminEmail = await getAdminEmail();
@@ -23,7 +27,7 @@ function Login({ setLoggedIn }) {
 
       // pass admin identity back to App
       setLoggedIn({ uid: userCredential.user.uid, email: signedEmail });
-    } catch (error) {
+    } catch {
       alert("Invalid username/password");
     }
   };

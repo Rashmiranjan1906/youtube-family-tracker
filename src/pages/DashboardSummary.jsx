@@ -27,20 +27,24 @@ function DashboardSummary({ month }) {
       const expectedAmount =
         members.reduce(
           (sum, member) =>
-            sum + member.monthlyFee,
+            sum + Number(member.monthlyFee || 0),
           0
         );
 
+      const paidPayments = payments.filter(
+        (payment) => payment.status?.toLowerCase() === "paid"
+      );
+
       const collectedAmount =
-        payments.reduce(
+        paidPayments.reduce(
           (sum, payment) =>
-            sum + payment.amount,
+            sum + Number(payment.amount || 0),
           0
         );
 
       const paidMembers =
         new Set(
-          payments.map(
+          paidPayments.map(
             payment =>
               payment.memberId
           )

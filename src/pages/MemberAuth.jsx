@@ -2,6 +2,7 @@ import { useState } from "react";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { auth } from "../services/auth";
 import { addMember, getMembers } from "../services/memberService";
+import { isValidEmail, isValidPhone } from "../utils/validation";
 
 function MemberAuth({ onMemberLogin }) {
   const [isSignup, setIsSignup] = useState(false);
@@ -12,14 +13,17 @@ function MemberAuth({ onMemberLogin }) {
 
   const handleSignup = async () => {
     if (!name || !phone || !email || !password) return alert("Fill all fields");
+    if (!isValidPhone(phone)) return alert("Please enter a valid phone number");
+    if (!isValidEmail(email)) return alert("Please enter a valid email address");
+
     try {
-      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
       // create member record
       await addMember({
         authUid: cred.user.uid,
-        name,
-        phone,
-        email,
+        name: name.trim(),
+        phone: phone.trim(),
+        email: email.trim(),
         monthlyFee: 50,
         active: true
       });
@@ -27,18 +31,20 @@ function MemberAuth({ onMemberLogin }) {
       alert("Account created successfully. Please log in to continue.");
       setIsSignup(false);
       setPassword("");
-    } catch (err) {
+    } catch {
       alert("Invalid username/password");
     }
   };
 
   const handleLogin = async () => {
     if (!email || !password) return alert("Fill email & password");
+    if (!isValidEmail(email)) return alert("Please enter a valid email address");
+
     try {
-      const cred = await signInWithEmailAndPassword(auth, email, password);
+      const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
       const members = await getMembers();
       const memberRecord = members.find(
-        (member) => member.authUid === cred.user.uid || member.email?.toLowerCase() === email.toLowerCase()
+        (member) => member.authUid === cred.user.uid || member.email?.toLowerCase() === email.trim().toLowerCase()
       );
       onMemberLogin({
         uid: cred.user.uid,
@@ -46,7 +52,7 @@ function MemberAuth({ onMemberLogin }) {
         name: memberRecord?.name,
         memberId: memberRecord?.id
       });
-    } catch (err) {
+    } catch {
       alert("Invalid username/password");
     }
   };

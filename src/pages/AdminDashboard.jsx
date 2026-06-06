@@ -16,6 +16,7 @@ import {
   getPayments
 } from "../services/paymentService";
 import { getUpiId, setUpiId, getAdminEmail, setAdminEmail } from "../services/settingsService";
+import { isValidEmail, isValidPhone } from "../utils/validation";
 
 function AdminDashboard({ user, onLogout }) {
 
@@ -25,6 +26,7 @@ function AdminDashboard({ user, onLogout }) {
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [monthlyFee, setMonthlyFee] = useState(50);
 
   const [members, setMembers] = useState([]);
@@ -32,6 +34,7 @@ function AdminDashboard({ user, onLogout }) {
   const [adminEmail, setAdminEmailState] = useState("");
   const [adminNewPassword, setAdminNewPassword] = useState("");
   const [adminConfirmPassword, setAdminConfirmPassword] = useState("");
+  const [showAdminPasswordForm, setShowAdminPasswordForm] = useState(false);
 
   const loadMembers = async () => {
     const data = await getMembers();
@@ -43,18 +46,47 @@ function AdminDashboard({ user, onLogout }) {
     try {
       const allMembers = await getMembers();
       const allPayments = await getPayments();
-      const today = new Date();
-      const nextMonthDate = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-      const nextMonth = nextMonthDate.toISOString().slice(0, 7);
+      const [year, monthIndex] = (selectedMonth || new Date().toISOString().slice(0, 7))
+        .split("-")
+        .map(Number);
+      const currentMonth = `${year}-${String(monthIndex).padStart(2, "0")}`;
+      const nextMonthDate = new Date(year, monthIndex, 1);
+      const nextMonth = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, "0")}`;
       const dueDate = new Date(nextMonthDate.getFullYear(), nextMonthDate.getMonth(), 5).toISOString();
+      const activeMembers = allMembers.filter((member) => member.active !== false);
+      const paidMemberIds = new Set(
+        allPayments
+          .filter(
+            (payment) =>
+              payment.month === currentMonth &&
+              payment.status?.toLowerCase() === "paid"
+          )
+          .map((payment) => payment.memberId)
+      );
       const existingMemberIds = new Set(
         allPayments
           .filter((payment) => payment.month === nextMonth)
           .map((payment) => payment.memberId)
       );
 
-      const memberRecords = allMembers.filter(
-        (member) => !existingMemberIds.has(member.id)
+      if (activeMembers.length === 0) {
+        alert("No active members found.");
+        return;
+      }
+
+      const unpaidMembers = activeMembers.filter(
+        (member) => !paidMemberIds.has(member.id)
+      );
+
+      if (unpaidMembers.length > 0) {
+        alert(
+          `Only ${activeMembers.length - unpaidMembers.length} of ${activeMembers.length} active member(s) are paid for ${currentMonth}. Generate the next month only after everyone has paid.`
+        );
+        return;
+      }
+
+      const memberRecords = activeMembers.filter(
+        (member) => paidMemberIds.has(member.id) && !existingMemberIds.has(member.id)
       );
 
       if (memberRecords.length === 0) {
@@ -79,7 +111,7 @@ function AdminDashboard({ user, onLogout }) {
         });
       }
 
-      alert(`Pending payment records created for ${memberRecords.length} member(s) for ${nextMonth}.`);
+      alert(`Pending payment records created for ${memberRecords.length} paid member(s) for ${nextMonth}.`);
     } catch (err) {
       console.error("Failed to create due records", err);
       alert("Failed to generate due records. See console for details.");
@@ -89,7 +121,12 @@ function AdminDashboard({ user, onLogout }) {
   };
 
   useEffect(() => {
-    loadMembers();
+    const loadInitialMembers = async () => {
+      const data = await getMembers();
+      setMembers(data);
+    };
+
+    loadInitialMembers();
     const loadUpi = async () => {
       try {
         const upi = await getUpiId();
@@ -105,14 +142,25 @@ function AdminDashboard({ user, onLogout }) {
 
   const handleSave = async () => {
 
-    if (!name || !email) {
-      alert("Please enter Name and Email");
+    if (!name || !email || !phone) {
+      alert("Please enter Name, Email, and Phone");
+      return;
+    }
+
+    if (!isValidEmail(email)) {
+      alert("Please enter a valid email address");
+      return;
+    }
+
+    if (!isValidPhone(phone)) {
+      alert("Please enter a valid phone number");
       return;
     }
 
     const member = {
-      name,
-      email,
+      name: name.trim(),
+      email: email.trim(),
+      phone: phone.trim(),
       monthlyFee: Number(monthlyFee),
       active: true
     };
@@ -123,6 +171,7 @@ function AdminDashboard({ user, onLogout }) {
 
     setName("");
     setEmail("");
+    setPhone("");
     setMonthlyFee(50);
 
     loadMembers();
@@ -260,6 +309,7 @@ function AdminDashboard({ user, onLogout }) {
                 <label className="input-label">Admin Email (for Admin Login)</label>
                 <input
                   className="input-field"
+                  type="email"
                   placeholder="admin@example.com"
                   value={adminEmail}
                   onChange={(e) => setAdminEmailState(e.target.value)}
@@ -270,7 +320,11 @@ function AdminDashboard({ user, onLogout }) {
                     className="primary-button"
                     onClick={async () => {
                       try {
-                        await setAdminEmail(adminEmail.trim());
+                        const trimmedEmail = adminEmail.trim();
+                        if (!trimmedEmail) return alert("Please enter admin email");
+                        if (!isValidEmail(trimmedEmail)) return alert("Please enter a valid admin email address");
+
+                        await setAdminEmail(trimmedEmail);
                         alert("Admin email saved");
                       } catch (err) {
                         console.error(err);
@@ -286,52 +340,64 @@ function AdminDashboard({ user, onLogout }) {
                 </div>
               </div>
 
-              <div style={{ marginTop: 12 }} className="form-grid">
-                <h3>Change Admin Password</h3>
-                <input
-                  className="input-field"
-                  type="password"
-                  placeholder="New password"
-                  value={adminNewPassword}
-                  onChange={(e) => setAdminNewPassword(e.target.value)}
-                />
-                <input
-                  className="input-field"
-                  type="password"
-                  placeholder="Confirm password"
-                  value={adminConfirmPassword}
-                  onChange={(e) => setAdminConfirmPassword(e.target.value)}
-                />
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button
-                    className="primary-button"
-                    onClick={async () => {
-                      if (!adminNewPassword || !adminConfirmPassword) return alert("Fill both password fields");
-                      if (adminNewPassword !== adminConfirmPassword) return alert("Passwords do not match");
-                      if (adminNewPassword.length < 6) return alert("Password should be at least 6 characters");
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => setShowAdminPasswordForm((show) => !show)}
+                style={{ marginTop: 12 }}
+              >
+                {showAdminPasswordForm ? "Hide Admin Password Update" : "Admin Password Update"}
+              </button>
 
-                      const currentUser = auth.currentUser;
-                      if (!currentUser) return alert("Admin not authenticated");
+              {showAdminPasswordForm && (
+                <div style={{ marginTop: 12 }} className="form-grid">
+                  <h3>Change Admin Password</h3>
+                  <input
+                    className="input-field"
+                    type="password"
+                    placeholder="New password"
+                    value={adminNewPassword}
+                    onChange={(e) => setAdminNewPassword(e.target.value)}
+                  />
+                  <input
+                    className="input-field"
+                    type="password"
+                    placeholder="Confirm password"
+                    value={adminConfirmPassword}
+                    onChange={(e) => setAdminConfirmPassword(e.target.value)}
+                  />
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button
+                      className="primary-button"
+                      onClick={async () => {
+                        if (!adminNewPassword || !adminConfirmPassword) return alert("Fill both password fields");
+                        if (adminNewPassword !== adminConfirmPassword) return alert("Passwords do not match");
+                        if (adminNewPassword.length < 6) return alert("Password should be at least 6 characters");
 
-                      try {
-                        await updatePassword(currentUser, adminNewPassword);
-                        alert("Admin password updated successfully");
-                        setAdminNewPassword("");
-                        setAdminConfirmPassword("");
-                      } catch (err) {
-                        console.error(err);
-                        if (err.code === "auth/requires-recent-login") {
-                          alert("Please re-login and try again");
-                        } else {
-                          alert("Failed to update password");
+                        const currentUser = auth.currentUser;
+                        if (!currentUser) return alert("Admin not authenticated");
+
+                        try {
+                          await updatePassword(currentUser, adminNewPassword);
+                          alert("Admin password updated successfully");
+                          setAdminNewPassword("");
+                          setAdminConfirmPassword("");
+                          setShowAdminPasswordForm(false);
+                        } catch (err) {
+                          console.error(err);
+                          if (err.code === "auth/requires-recent-login") {
+                            alert("Please re-login and try again");
+                          } else {
+                            alert("Failed to update password");
+                          }
                         }
-                      }
-                    }}
-                  >
-                    Update Admin Password
-                  </button>
+                      }}
+                    >
+                      Update Admin Password
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
             </div>
 
@@ -345,9 +411,18 @@ function AdminDashboard({ user, onLogout }) {
 
               <input
                 className="input-field"
+                type="email"
                 placeholder="Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+              />
+
+              <input
+                className="input-field"
+                type="tel"
+                placeholder="Phone Number"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
               />
 
               <input

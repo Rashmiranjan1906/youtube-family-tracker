@@ -28,6 +28,7 @@ function Payments({ mode = "admin", onBack, onLogout, onPaymentSaved, currentUse
   // change password state (member)
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showMemberPasswordForm, setShowMemberPasswordForm] = useState(false);
 
   const memberDisplayName = currentUser?.name || currentUser?.email?.split("@")[0] || "Member";
 
@@ -269,6 +270,13 @@ function Payments({ mode = "admin", onBack, onLogout, onPaymentSaved, currentUse
           <h2>💳 Make Payment</h2>
           <p>Hi {memberDisplayName}, welcome to YouTube Premium payment.</p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", marginTop: "12px" }}>
+            <button
+              className="secondary-button"
+              onClick={() => setShowMemberPasswordForm((show) => !show)}
+              style={{ marginTop: "0" }}
+            >
+              {showMemberPasswordForm ? "Hide Member Password Update" : "Member Password Update"}
+            </button>
             {onBack && (
               <button
                 className="secondary-button"
@@ -337,7 +345,7 @@ function Payments({ mode = "admin", onBack, onLogout, onPaymentSaved, currentUse
             </>
           )}
 
-          {mode === "member" && (
+          {mode === "member" && showMemberPasswordForm && (
             <div style={{ marginTop: 18, borderTop: "1px solid #eee", paddingTop: 12 }}>
               <h3>Change Password</h3>
               <label className="input-label">New Password</label>
@@ -360,6 +368,7 @@ function Payments({ mode = "admin", onBack, onLogout, onPaymentSaved, currentUse
                       alert("Password updated successfully");
                       setNewPassword("");
                       setConfirmPassword("");
+                      setShowMemberPasswordForm(false);
                     } catch (err) {
                       console.error(err);
                       if (err.code === "auth/requires-recent-login") {
