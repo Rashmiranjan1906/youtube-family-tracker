@@ -5,21 +5,53 @@ function PaymentHistory({ monthFilter }) {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // ✅ Format Payment Date (with time)
+  const formatPaymentDate = (date) => {
+    if (!date) return "-";
+
+    return new Date(date).toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  // ✅ Due Date always 5th of month
+  const formatDueDate = (month) => {
+    if (!month) return "-";
+
+    const d = new Date(month);
+    d.setDate(5);
+
+    return d.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  // ---------------- DOWNLOAD RECEIPT ----------------
   const downloadReceipt = (payment) => {
-    if (!payment.screenshotData) {
-      return;
-    }
+    if (!payment.screenshotData) return;
 
     const link = document.createElement("a");
     link.href = payment.screenshotData;
-    link.download = payment.screenshotFileName || `receipt-${payment.id}.png`;
+    link.download =
+      payment.screenshotFileName || `receipt-${payment.id}.png`;
+
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
+  // ---------------- DOWNLOAD INVOICE ----------------
   const downloadInvoice = (payment) => {
-    const formattedDate = payment.paymentDate ? new Date(payment.paymentDate).toLocaleDateString() : "-";
+    const formattedDate = formatPaymentDate(payment.paymentDate);
+
+    const dueDate = formatDueDate(payment.month);
+
     const html = `<!doctype html>
 <html>
 <head>
@@ -53,10 +85,12 @@ section{margin-bottom:24px;}
     <div class="value">${formattedDate}</div>
   </div>
 </header>
+
 <section>
   <div class="label">Member</div>
   <div class="value">${payment.memberName || "-"}</div>
 </section>
+
 <section>
   <table class="table">
     <thead>
@@ -64,35 +98,58 @@ section{margin-bottom:24px;}
     </thead>
     <tbody>
       <tr><td>Status</td><td>${payment.status || "Pending"}</td></tr>
-      <tr><td>Payment Method</td><td>${payment.paymentGateway === "qr_upi" ? "UPI QR" : payment.paymentGateway === "manual" ? "Manual" : payment.paymentGateway || "-"}</td></tr>
+      <tr>
+        <td>Payment Method</td>
+        <td>${
+          payment.paymentGateway === "qr_upi"
+            ? "UPI QR"
+            : payment.paymentGateway === "manual"
+            ? "Manual"
+            : payment.paymentGateway || "-"
+        }</td>
+      </tr>
       <tr><td>Transaction ID</td><td>${payment.transactionId || "-"}</td></tr>
-      <tr><td>Due Date</td><td>${payment.dueDate ? new Date(payment.dueDate).toLocaleDateString() : "-"}</td></tr>
+      <tr><td>Due Date</td><td>${dueDate}</td></tr>
     </tbody>
   </table>
 </section>
+
 <div class="footer">
   <div class="label">Invoice generated for YouTube Premium Family subscription</div>
   <div class="total">₹${payment.amount}</div>
 </div>
+
 </div>
 </body>
 </html>`;
+
     const blob = new Blob([html], { type: "text/html" });
     const url = URL.createObjectURL(blob);
+
     const link = document.createElement("a");
     link.href = url;
-    link.download = `invoice-${payment.memberName?.replace(/\s+/g, "_") || "member"}-${payment.month || "invoice"}.html`;
+    link.download = `invoice-${
+      payment.memberName?.replace(/\s+/g, "_") || "member"
+    }-${payment.month || "invoice"}.html`;
+
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+
     URL.revokeObjectURL(url);
   };
 
+  // ---------------- FETCH PAYMENTS ----------------
   useEffect(() => {
     const loadPayments = async () => {
       try {
         const data = await getPayments();
-        setPayments(monthFilter ? data.filter((payment) => payment.month === monthFilter) : data);
+
+        setPayments(
+          monthFilter
+            ? data.filter((p) => p.month === monthFilter)
+            : data
+        );
       } catch (error) {
         console.error("Error loading payments:", error);
       } finally {
@@ -132,6 +189,7 @@ section{margin-bottom:24px;}
                 <th>Status</th>
                 <th>Transaction ID</th>
                 <th>Payment Date</th>
+                <th>Due Date</th>
                 <th>Method</th>
                 <th>Receipt</th>
                 <th>Invoice</th>
@@ -146,11 +204,11 @@ section{margin-bottom:24px;}
                   <td>₹{payment.amount}</td>
                   <td>{payment.status}</td>
                   <td>{payment.transactionId || "-"}</td>
-                  <td>
-                    {payment.paymentDate
-                      ? new Date(payment.paymentDate).toLocaleDateString()
-                      : "-"}
-                  </td>
+
+                  <td>{formatPaymentDate(payment.paymentDate)}</td>
+
+                  <td>{formatDueDate(payment.month)}</td>
+
                   <td>
                     {payment.paymentGateway === "qr_upi"
                       ? "UPI QR"
@@ -158,6 +216,7 @@ section{margin-bottom:24px;}
                       ? "Manual"
                       : payment.paymentGateway || "-"}
                   </td>
+
                   <td>
                     {payment.screenshotData ? (
                       <button
@@ -170,6 +229,7 @@ section{margin-bottom:24px;}
                       "-"
                     )}
                   </td>
+
                   <td>
                     <button
                       className="secondary-button"
