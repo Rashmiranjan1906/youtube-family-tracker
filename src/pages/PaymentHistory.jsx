@@ -134,6 +134,7 @@ section{margin-bottom:24px;}
                 <th>Payment Date</th>
                 <th>Method</th>
                 <th>Receipt</th>
+                <th>Invoice</th>
               </tr>
             </thead>
 

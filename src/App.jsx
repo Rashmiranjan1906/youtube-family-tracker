@@ -65,7 +65,7 @@ function App() {
     return (
       <div className="app-shell">
         <div className="page-panel">
-          <h2>Loading authentication…</h2>
+          <h2>Loading...</h2>
         </div>
       </div>
     );

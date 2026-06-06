@@ -5,8 +5,21 @@ function MemberHistory({ currentUser, refreshKey }) {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const downloadReceipt = (payment) => {
+    if (!payment.screenshotData) {
+      return;
+    }
+
+    const link = document.createElement("a");
+    link.href = payment.screenshotData;
+    link.download = payment.screenshotFileName || `receipt-${payment.id}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const downloadInvoice = (payment) => {
-    const formattedDate = payment.paymentDate ? new Date(payment.paymentDate).toLocaleDateString() : "-";
+    const formattedDate = payment.paymentDate ? new Date(payment.paymentDate).toLocaleString() : "-";
     const html = `<!doctype html>
 <html>
 <head>
@@ -17,9 +30,8 @@ body{font-family: Inter, system-ui, sans-serif; margin:0; padding:24px; color:#2
 .container{max-width:760px; margin:0 auto; background:#fff; border-radius:24px; box-shadow:0 20px 70px rgba(28,22,64,.12); padding:32px;}
 header{display:flex; justify-content:space-between; align-items:center; margin-bottom:32px;}
 .brand{font-size:1.2rem; font-weight:800; color:#4f46e5;}
-h1{margin:0; font-size:2rem;}
-.section{margin-bottom:24px;}
-.label{color:#6b7280; font-size:.85rem; text-transform:uppercase; letter-spacing:.08em; margin-bottom:8px;}
+section{margin-bottom:24px;}
+.label{color:#6b7280; font-size:.85rem; text-transform:uppercase; letter-spacing:.08em; margin-bottom:8px; display:block;}
 .value{font-size:1.05rem; font-weight:600; color:#111827;}
 .table{width:100%; border-collapse:collapse; margin-top:16px;}
 .table th, .table td{padding:16px; text-align:left; border-bottom:1px solid #e5e7eb;}
@@ -41,11 +53,11 @@ h1{margin:0; font-size:2rem;}
     <div class="value">${formattedDate}</div>
   </div>
 </header>
-<section class="section">
+<section>
   <div class="label">Member</div>
   <div class="value">${payment.memberName || "-"}</div>
 </section>
-<section class="section">
+<section>
   <table class="table">
     <thead>
       <tr><th>Description</th><th>Value</th></tr>
@@ -129,6 +141,7 @@ h1{margin:0; font-size:2rem;}
                 <th>Transaction ID</th>
                 <th>Payment Date</th>
                 <th>Method</th>
+                <th>Receipt</th>
                 <th>Invoice</th>
               </tr>
             </thead>
@@ -141,7 +154,7 @@ h1{margin:0; font-size:2rem;}
                   <td>{payment.transactionId || "-"}</td>
                   <td>
                     {payment.paymentDate
-                      ? new Date(payment.paymentDate).toLocaleDateString()
+                      ? new Date(payment.paymentDate).toLocaleString()
                       : "-"}
                   </td>
                   <td>
@@ -150,6 +163,18 @@ h1{margin:0; font-size:2rem;}
                       : payment.paymentGateway === "manual"
                       ? "Manual"
                       : payment.paymentGateway || "-"}
+                  </td>
+                  <td>
+                    {payment.screenshotData ? (
+                      <button
+                        className="secondary-button"
+                        onClick={() => downloadReceipt(payment)}
+                      >
+                        Receipt
+                      </button>
+                    ) : (
+                      "-"
+                    )}
                   </td>
                   <td>
                     <button

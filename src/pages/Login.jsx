@@ -24,15 +24,17 @@ function Login({ setLoggedIn }) {
       // pass admin identity back to App
       setLoggedIn({ uid: userCredential.user.uid, email: signedEmail });
     } catch (error) {
-      alert(error.message);
+      alert("Invalid username/password");
     }
   };
+
+  
 
   return (
     <div className="app-shell page-panel auth-panel">
       <div className="panel-header">
         <p className="eyebrow">Admin Access</p>
-        <h2>Welcome Back</h2>
+        <h2>Admin Login</h2>
         <p>Sign in to manage members, payments, reminders, and defaulters.</p>
       </div>
 

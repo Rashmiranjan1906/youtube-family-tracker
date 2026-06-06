@@ -1,29 +1,34 @@
 import { useState } from "react";
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { auth } from "../services/auth";
 import { addMember, getMembers } from "../services/memberService";
 
 function MemberAuth({ onMemberLogin }) {
   const [isSignup, setIsSignup] = useState(false);
   const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const handleSignup = async () => {
-    if (!name || !email || !password) return alert("Fill all fields");
+    if (!name || !phone || !email || !password) return alert("Fill all fields");
     try {
       const cred = await createUserWithEmailAndPassword(auth, email, password);
       // create member record
       await addMember({
         authUid: cred.user.uid,
         name,
+        phone,
         email,
         monthlyFee: 50,
         active: true
       });
-      onMemberLogin({ uid: cred.user.uid, email: cred.user.email, name });
+      await signOut(auth);
+      alert("Account created successfully. Please log in to continue.");
+      setIsSignup(false);
+      setPassword("");
     } catch (err) {
-      alert(err.message);
+      alert("Invalid username/password");
     }
   };
 
@@ -42,9 +47,11 @@ function MemberAuth({ onMemberLogin }) {
         memberId: memberRecord?.id
       });
     } catch (err) {
-      alert(err.message);
+      alert("Invalid username/password");
     }
   };
+
+  
 
   return (
     <div className="app-shell page-panel auth-panel">
@@ -55,10 +62,14 @@ function MemberAuth({ onMemberLogin }) {
       </div>
 
       <div className="form-grid">
+
         {isSignup && (
           <>
             <label className="input-label">Full Name</label>
             <input className="input-field" value={name} onChange={(e)=>setName(e.target.value)} />
+
+            <label className="input-label">Phone Number</label>
+            <input className="input-field" type="tel" value={phone} onChange={(e)=>setPhone(e.target.value)} placeholder="Enter your phone number" />
           </>
         )}
 
@@ -71,7 +82,9 @@ function MemberAuth({ onMemberLogin }) {
         {isSignup ? (
           <button className="primary-button" onClick={handleSignup}>Create Account</button>
         ) : (
-          <button className="primary-button" onClick={handleLogin}>Login</button>
+          <>
+            <button className="primary-button" onClick={handleLogin}>Login</button>
+          </>
         )}
 
         <button className="secondary-button" onClick={() => setIsSignup(!isSignup)}>

@@ -9,6 +9,8 @@ import {
   addMember,
   getMembers
 } from "../services/memberService";
+import { auth } from "../services/auth";
+import { updatePassword } from "firebase/auth";
 import {
   addPayment,
   getPayments
@@ -28,6 +30,8 @@ function AdminDashboard({ user, onLogout }) {
   const [members, setMembers] = useState([]);
   const [adminUpi, setAdminUpi] = useState("");
   const [adminEmail, setAdminEmailState] = useState("");
+  const [adminNewPassword, setAdminNewPassword] = useState("");
+  const [adminConfirmPassword, setAdminConfirmPassword] = useState("");
 
   const loadMembers = async () => {
     const data = await getMembers();
@@ -282,6 +286,53 @@ function AdminDashboard({ user, onLogout }) {
                 </div>
               </div>
 
+              <div style={{ marginTop: 12 }} className="form-grid">
+                <h3>Change Admin Password</h3>
+                <input
+                  className="input-field"
+                  type="password"
+                  placeholder="New password"
+                  value={adminNewPassword}
+                  onChange={(e) => setAdminNewPassword(e.target.value)}
+                />
+                <input
+                  className="input-field"
+                  type="password"
+                  placeholder="Confirm password"
+                  value={adminConfirmPassword}
+                  onChange={(e) => setAdminConfirmPassword(e.target.value)}
+                />
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    className="primary-button"
+                    onClick={async () => {
+                      if (!adminNewPassword || !adminConfirmPassword) return alert("Fill both password fields");
+                      if (adminNewPassword !== adminConfirmPassword) return alert("Passwords do not match");
+                      if (adminNewPassword.length < 6) return alert("Password should be at least 6 characters");
+
+                      const currentUser = auth.currentUser;
+                      if (!currentUser) return alert("Admin not authenticated");
+
+                      try {
+                        await updatePassword(currentUser, adminNewPassword);
+                        alert("Admin password updated successfully");
+                        setAdminNewPassword("");
+                        setAdminConfirmPassword("");
+                      } catch (err) {
+                        console.error(err);
+                        if (err.code === "auth/requires-recent-login") {
+                          alert("Please re-login and try again");
+                        } else {
+                          alert("Failed to update password");
+                        }
+                      }
+                    }}
+                  >
+                    Update Admin Password
+                  </button>
+                </div>
+              </div>
+
             </div>
 
             <div className="form-grid">
@@ -318,6 +369,7 @@ function AdminDashboard({ user, onLogout }) {
                   <tr>
                     <th>Name</th>
                     <th>Email</th>
+                    <th>Phone</th>
                     <th>Monthly Fee</th>
                     <th>Status</th>
                   </tr>

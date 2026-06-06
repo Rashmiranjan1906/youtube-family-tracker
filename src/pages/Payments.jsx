@@ -7,6 +7,8 @@ import {
   convertFileToBase64
 } from "../services/razorpayService";
 import { getUpiId } from "../services/settingsService";
+import { auth } from "../services/auth";
+import { updatePassword } from "firebase/auth";
 
 function Payments({ mode = "admin", onBack, onLogout, onPaymentSaved, currentUser }) {
 
@@ -22,6 +24,10 @@ function Payments({ mode = "admin", onBack, onLogout, onPaymentSaved, currentUse
   const [upiId, setUpiId] = useState("");
   const [memberName, setMemberName] = useState("");
   const [step, setStep] = useState(mode === "member" ? "enter-details" : "initial");
+
+  // change password state (member)
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const memberDisplayName = currentUser?.name || currentUser?.email?.split("@")[0] || "Member";
 
@@ -294,6 +300,7 @@ function Payments({ mode = "admin", onBack, onLogout, onPaymentSaved, currentUse
                 value={memberName}
                 onChange={(e) => setMemberName(e.target.value)}
                 disabled={processing}
+                readOnly={mode === "member"}
               />
 
               <label className="input-label">Amount to Pay (₹)</label>
@@ -328,6 +335,45 @@ function Payments({ mode = "admin", onBack, onLogout, onPaymentSaved, currentUse
                 </button>
               )}
             </>
+          )}
+
+          {mode === "member" && (
+            <div style={{ marginTop: 18, borderTop: "1px solid #eee", paddingTop: 12 }}>
+              <h3>Change Password</h3>
+              <label className="input-label">New Password</label>
+              <input className="input-field" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+              <label className="input-label">Confirm Password</label>
+              <input className="input-field" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  className="primary-button"
+                  onClick={async () => {
+                    if (!newPassword || !confirmPassword) return alert("Fill both password fields");
+                    if (newPassword !== confirmPassword) return alert("Passwords do not match");
+                    if (newPassword.length < 6) return alert("Password should be at least 6 characters");
+
+                    const currentUser = auth.currentUser;
+                    if (!currentUser) return alert("Member does not exist");
+
+                    try {
+                      await updatePassword(currentUser, newPassword);
+                      alert("Password updated successfully");
+                      setNewPassword("");
+                      setConfirmPassword("");
+                    } catch (err) {
+                      console.error(err);
+                      if (err.code === "auth/requires-recent-login") {
+                        alert("Please re-login and try again");
+                      } else {
+                        alert("Failed to update password");
+                      }
+                    }
+                  }}
+                >
+                  Update Password
+                </button>
+              </div>
+            </div>
           )}
 
           {step === "payment-screenshot" && (
