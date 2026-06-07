@@ -4,6 +4,7 @@ import PaymentHistory from "./PaymentHistory";
 import DashboardSummary from "./DashboardSummary";
 import Defaulters from "./Defaulters";
 import ReminderGenerator from "./ReminderGenerator";
+import ActivityLogs from "./ActivityLogs";
 
 import {
   addMember,
@@ -16,6 +17,7 @@ import {
   getPayments
 } from "../services/paymentService";
 import { getUpiId, setUpiId, getAdminEmail, setAdminEmail } from "../services/settingsService";
+import { logActivity } from "../services/auditService";
 import { isValidEmail, isValidPhone } from "../utils/validation";
 
 function AdminDashboard({ user, onLogout }) {
@@ -111,6 +113,17 @@ function AdminDashboard({ user, onLogout }) {
         });
       }
 
+      await logActivity({
+        actorRole: "admin",
+        actorUid: user?.uid,
+        actorEmail: user?.email,
+        action: "create_next_month_due_records",
+        details: {
+          currentMonth,
+          nextMonth,
+          recordsCreated: memberRecords.length
+        }
+      });
       alert(`Pending payment records created for ${memberRecords.length} paid member(s) for ${nextMonth}.`);
     } catch (err) {
       console.error("Failed to create due records", err);
@@ -165,7 +178,18 @@ function AdminDashboard({ user, onLogout }) {
       active: true
     };
 
-    await addMember(member);
+    const memberId = await addMember(member);
+    await logActivity({
+      actorRole: "admin",
+      actorUid: user?.uid,
+      actorEmail: user?.email,
+      action: "admin_add_member",
+      details: {
+        memberId,
+        memberName: member.name,
+        memberEmail: member.email
+      }
+    });
 
     alert("Member Added");
 
@@ -195,7 +219,7 @@ function AdminDashboard({ user, onLogout }) {
             )}
           </div>
 
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "flex-end", alignItems: "center" }}>
+          <nav className="admin-nav" aria-label="Admin sections">
             <button
               className={`secondary-button ${page === "dashboard" ? "active" : ""}`}
               onClick={() => setPage("dashboard")}
@@ -207,6 +231,12 @@ function AdminDashboard({ user, onLogout }) {
               onClick={() => setPage("payments")}
             >
               Record Payment
+            </button>
+            <button
+              className={`secondary-button ${page === "members" ? "active" : ""}`}
+              onClick={() => setPage("members")}
+            >
+              Add Member
             </button>
             <button
               className={`secondary-button ${page === "history" ? "active" : ""}`}
@@ -226,11 +256,17 @@ function AdminDashboard({ user, onLogout }) {
             >
               Reminders
             </button>
-          </div>
+            <button
+              className={`secondary-button ${page === "activity" ? "active" : ""}`}
+              onClick={() => setPage("activity")}
+            >
+              Activity
+            </button>
+          </nav>
         </div>
 
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, justifyContent: "space-between", alignItems: "center", marginTop: 20 }}>
-          <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+        <div className="admin-toolbar">
+          <div className="month-control">
             <span style={{ fontSize: "0.92rem", fontWeight: 600, color: "#444" }}>View Month</span>
             <input
               type="month"
@@ -241,7 +277,7 @@ function AdminDashboard({ user, onLogout }) {
             />
           </div>
 
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "flex-end" }}>
+          <div className="admin-actions">
             <button
               className="secondary-button"
               onClick={createNextMonthDueRecords}
@@ -266,9 +302,13 @@ function AdminDashboard({ user, onLogout }) {
       </div>
 
       {page === "dashboard" && (
-        <div className="dashboard-grid">
+        <div className="dashboard-grid dashboard-only">
           <DashboardSummary month={selectedMonth} />
+        </div>
+      )}
 
+      {page === "members" && (
+        <div className="dashboard-grid">
           <div className="page-panel">
             <div className="panel-header">
               <p className="eyebrow">Family Members</p>
@@ -291,6 +331,12 @@ function AdminDashboard({ user, onLogout }) {
                   onClick={async () => {
                     try {
                       await setUpiId(adminUpi.trim());
+                      await logActivity({
+                        actorRole: "admin",
+                        actorUid: user?.uid,
+                        actorEmail: user?.email,
+                        action: "admin_update_upi"
+                      });
                       alert("Admin UPI saved");
                     } catch (err) {
                       console.error(err);
@@ -325,6 +371,13 @@ function AdminDashboard({ user, onLogout }) {
                         if (!isValidEmail(trimmedEmail)) return alert("Please enter a valid admin email address");
 
                         await setAdminEmail(trimmedEmail);
+                        await logActivity({
+                          actorRole: "admin",
+                          actorUid: user?.uid,
+                          actorEmail: user?.email,
+                          action: "admin_update_login_email",
+                          details: { adminEmail: trimmedEmail }
+                        });
                         alert("Admin email saved");
                       } catch (err) {
                         console.error(err);
@@ -379,6 +432,12 @@ function AdminDashboard({ user, onLogout }) {
 
                         try {
                           await updatePassword(currentUser, adminNewPassword);
+                          await logActivity({
+                            actorRole: "admin",
+                            actorUid: user?.uid,
+                            actorEmail: user?.email,
+                            action: "admin_update_password"
+                          });
                           alert("Admin password updated successfully");
                           setAdminNewPassword("");
                           setAdminConfirmPassword("");
@@ -467,7 +526,7 @@ function AdminDashboard({ user, onLogout }) {
       )}
 
       {page === "payments" && (
-        <Payments mode="admin" />
+        <Payments mode="admin" currentUser={user} />
       )}
 
       {page === "history" && (
@@ -479,6 +538,9 @@ function AdminDashboard({ user, onLogout }) {
       )}
       {page === "reminders" && (
         <ReminderGenerator />
+      )}
+      {page === "activity" && (
+        <ActivityLogs />
       )}
     </div>
   );

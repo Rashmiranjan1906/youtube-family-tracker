@@ -2,6 +2,7 @@ import { useState } from "react";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
 import { auth } from "../services/auth";
 import { getAdminEmail } from "../services/settingsService";
+import { logActivity } from "../services/auditService";
 import { isValidEmail } from "../utils/validation";
 
 function Login({ setLoggedIn, embedded = false }) {
@@ -26,6 +27,12 @@ function Login({ setLoggedIn, embedded = false }) {
       }
 
       // pass admin identity back to App
+      await logActivity({
+        actorRole: "admin",
+        actorUid: userCredential.user.uid,
+        actorEmail: signedEmail,
+        action: "admin_login"
+      });
       setLoggedIn({ uid: userCredential.user.uid, email: signedEmail });
     } catch {
       alert("Invalid username/password");
@@ -36,7 +43,7 @@ function Login({ setLoggedIn, embedded = false }) {
 
   const content = (
     <>
-      <div className="panel-header">
+      <div className="panel-header admin-auth-header">
         <p className="eyebrow">Admin Access</p>
         <h2>Admin Login</h2>
         <p>Sign in to manage members, payments, reminders, and defaulters.</p>

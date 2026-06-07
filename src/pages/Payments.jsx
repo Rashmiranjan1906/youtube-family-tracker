@@ -9,8 +9,13 @@ import {
 import { getUpiId } from "../services/settingsService";
 import { auth } from "../services/auth";
 import { updatePassword } from "firebase/auth";
+import { logActivity } from "../services/auditService";
 
-function Payments({ mode = "admin", onBack, onLogout, onPaymentSaved, currentUser }) {
+const WHATSAPP_GROUP_LINK = "https://chat.whatsapp.com/HSRsCFX17pFJBncSvfr5CH";
+const CONTACT_EMAIL = "rashmiranjanbarik962@gmail.com";
+const CONTACT_PHONE = "+91 7205300237";
+
+function Payments({ mode = "admin", onBack, onLogout, onPaymentSaved, onPasswordPanelChange, currentUser }) {
 
   const [members, setMembers] = useState([]);
   const [selectedMember, setSelectedMember] = useState("");
@@ -31,6 +36,14 @@ function Payments({ mode = "admin", onBack, onLogout, onPaymentSaved, currentUse
   const [showMemberPasswordForm, setShowMemberPasswordForm] = useState(false);
 
   const memberDisplayName = currentUser?.name || currentUser?.email?.split("@")[0] || "Member";
+
+  const toggleMemberPasswordForm = () => {
+    setShowMemberPasswordForm((show) => {
+      const next = !show;
+      onPasswordPanelChange?.(next);
+      return next;
+    });
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -170,6 +183,18 @@ function Payments({ mode = "admin", onBack, onLogout, onPaymentSaved, currentUse
         screenshotFileName: screenshotFile.name,
         qrReference: qrCode?.transactionRef
       });
+      await logActivity({
+        actorRole: mode,
+        actorUid: currentUser?.uid,
+        actorEmail: currentUser?.email,
+        action: `${mode}_record_qr_payment`,
+        details: {
+          memberId: member.id,
+          memberName: member.name,
+          amount: Number(amount),
+          month: new Date().toISOString().slice(0, 7)
+        }
+      });
 
       alert("Payment recorded successfully! ✨");
       onPaymentSaved?.();
@@ -237,6 +262,18 @@ function Payments({ mode = "admin", onBack, onLogout, onPaymentSaved, currentUse
         paymentDate: new Date().toISOString(),
         paymentGateway: "manual"
       });
+      await logActivity({
+        actorRole: mode,
+        actorUid: currentUser?.uid,
+        actorEmail: currentUser?.email,
+        action: `${mode}_record_manual_payment`,
+        details: {
+          memberId: member.id,
+          memberName: member.name,
+          amount: Number(amount),
+          month: new Date().toISOString().slice(0, 7)
+        }
+      });
 
       alert("Payment Saved");
       onPaymentSaved?.();
@@ -264,24 +301,38 @@ function Payments({ mode = "admin", onBack, onLogout, onPaymentSaved, currentUse
   // ============ MEMBER MODE ============
   if (mode === "member") {
     return (
-      <div className="page-panel">
-        <div className="panel-header">
-          <p className="eyebrow">Payment Portal</p>
-          <h2>💳 Make Payment</h2>
-          <p>Hi {memberDisplayName}, welcome to YouTube Premium payment.</p>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", marginTop: "12px" }}>
+      <div className="page-panel member-portal">
+        <div className="member-portal-top">
+          <div className="member-title-row">
+            <div className="youtube-mark" aria-hidden="true">
+              <span></span>
+            </div>
+            <div>
+              <p className="eyebrow">Payment Portal</p>
+              <h2>YouTube Premium</h2>
+              <p>Hi {memberDisplayName}, manage your family plan payment here.</p>
+            </div>
+          </div>
+
+          <nav className="member-nav" aria-label="Member actions">
             <button
               className="secondary-button"
-              onClick={() => setShowMemberPasswordForm((show) => !show)}
-              style={{ marginTop: "0" }}
+              onClick={toggleMemberPasswordForm}
             >
-              {showMemberPasswordForm ? "Hide Member Password Update" : "Member Password Update"}
+              {showMemberPasswordForm ? "Back to Payment" : "Change Password"}
             </button>
+            <a
+              className="secondary-button nav-link-button whatsapp-button"
+              href={WHATSAPP_GROUP_LINK}
+              target="_blank"
+              rel="noreferrer"
+            >
+              WhatsApp Group
+            </a>
             {onBack && (
               <button
                 className="secondary-button"
                 onClick={onBack}
-                style={{ marginTop: "0" }}
               >
                 ← Back to Admin
               </button>
@@ -290,16 +341,58 @@ function Payments({ mode = "admin", onBack, onLogout, onPaymentSaved, currentUse
               <button
                 className="secondary-button"
                 onClick={onLogout}
-                style={{ marginTop: "0" }}
               >
                 Logout
               </button>
             )}
-          </div>
+          </nav>
         </div>
 
         <div className="form-grid">
-          {step === "enter-details" && (
+          {mode === "member" && showMemberPasswordForm ? (
+            <div className="password-focus-panel">
+              <h3>Change Password</h3>
+              <label className="input-label">New Password</label>
+              <input className="input-field" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
+              <label className="input-label">Confirm Password</label>
+              <input className="input-field" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
+              <button
+                className="primary-button"
+                onClick={async () => {
+                  if (!newPassword || !confirmPassword) return alert("Fill both password fields");
+                  if (newPassword !== confirmPassword) return alert("Passwords do not match");
+                  if (newPassword.length < 6) return alert("Password should be at least 6 characters");
+
+                  const currentUser = auth.currentUser;
+                  if (!currentUser) return alert("Member does not exist");
+
+                  try {
+                    await updatePassword(currentUser, newPassword);
+                    await logActivity({
+                      actorRole: "member",
+                      actorUid: currentUser.uid,
+                      actorEmail: currentUser.email,
+                      action: "member_update_password"
+                    });
+                    alert("Password updated successfully");
+                    setNewPassword("");
+                    setConfirmPassword("");
+                    setShowMemberPasswordForm(false);
+                    onPasswordPanelChange?.(false);
+                  } catch (err) {
+                    console.error(err);
+                    if (err.code === "auth/requires-recent-login") {
+                      alert("Please re-login and try again");
+                    } else {
+                      alert("Failed to update password");
+                    }
+                  }
+                }}
+              >
+                Update Password
+              </button>
+            </div>
+          ) : step === "enter-details" && (
             <>
               <label className="input-label">Your Name</label>
               <input
@@ -345,47 +438,7 @@ function Payments({ mode = "admin", onBack, onLogout, onPaymentSaved, currentUse
             </>
           )}
 
-          {mode === "member" && showMemberPasswordForm && (
-            <div style={{ marginTop: 18, borderTop: "1px solid #eee", paddingTop: 12 }}>
-              <h3>Change Password</h3>
-              <label className="input-label">New Password</label>
-              <input className="input-field" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} />
-              <label className="input-label">Confirm Password</label>
-              <input className="input-field" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} />
-              <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  className="primary-button"
-                  onClick={async () => {
-                    if (!newPassword || !confirmPassword) return alert("Fill both password fields");
-                    if (newPassword !== confirmPassword) return alert("Passwords do not match");
-                    if (newPassword.length < 6) return alert("Password should be at least 6 characters");
-
-                    const currentUser = auth.currentUser;
-                    if (!currentUser) return alert("Member does not exist");
-
-                    try {
-                      await updatePassword(currentUser, newPassword);
-                      alert("Password updated successfully");
-                      setNewPassword("");
-                      setConfirmPassword("");
-                      setShowMemberPasswordForm(false);
-                    } catch (err) {
-                      console.error(err);
-                      if (err.code === "auth/requires-recent-login") {
-                        alert("Please re-login and try again");
-                      } else {
-                        alert("Failed to update password");
-                      }
-                    }
-                  }}
-                >
-                  Update Password
-                </button>
-              </div>
-            </div>
-          )}
-
-          {step === "payment-screenshot" && (
+          {!showMemberPasswordForm && step === "payment-screenshot" && (
             <>
               <div className="qr-container">
                 <div className="qr-box">
@@ -455,7 +508,30 @@ function Payments({ mode = "admin", onBack, onLogout, onPaymentSaved, currentUse
           )}
         </div>
 
-        <div className="payment-note">
+        {!showMemberPasswordForm && (
+          <>
+            <div className="member-support-grid">
+              <section className="support-card">
+                <p className="eyebrow">Need Help?</p>
+                <h3>Contact Support</h3>
+                <p>For any issue with payment, login, or account access.</p>
+                <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+                <a href="tel:+917205300237">{CONTACT_PHONE}</a>
+              </section>
+
+              <section className="support-card">
+                <p className="eyebrow">Visit My Page</p>
+                <h3>Connect Online</h3>
+                <div className="social-links">
+                  <a href="https://www.instagram.com/iamrashmiranjan/" target="_blank" rel="noreferrer">Instagram</a>
+                  <a href="https://www.linkedin.com/in/rashmiranjan-barik-85bb69204" target="_blank" rel="noreferrer">LinkedIn</a>
+                  <a href="https://www.facebook.com/rashmiranjanbarik.kanha/" target="_blank" rel="noreferrer">Facebook</a>
+                  <a href="https://github.com/Rashmiranjan1906/youtube-family-tracker.git" target="_blank" rel="noreferrer">GitHub</a>
+                </div>
+              </section>
+            </div>
+
+            <div className="payment-note">
           <p>
             <strong>How to pay:</strong> 
             <br/>1️⃣ Enter your details above
@@ -465,7 +541,9 @@ function Payments({ mode = "admin", onBack, onLogout, onPaymentSaved, currentUse
             <br/>5️⃣ Upload the receipt screenshot
             <br/>6️⃣ Done! Your payment will be recorded ✅
           </p>
-        </div>
+            </div>
+          </>
+        )}
       </div>
     );
   }

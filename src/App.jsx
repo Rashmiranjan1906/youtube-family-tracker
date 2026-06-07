@@ -8,12 +8,14 @@ import AdminDashboard from "./pages/AdminDashboard";
 import Payments from "./pages/Payments";
 import MemberAuth from "./pages/MemberAuth";
 import MemberHistory from "./pages/MemberHistory";
+import { logActivity } from "./services/auditService";
 
 function App() {
   const [user, setUser] = useState(null);
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [authMode, setAuthMode] = useState("admin");
   const [memberHistoryRefreshKey, setMemberHistoryRefreshKey] = useState(0);
+  const [memberPasswordOpen, setMemberPasswordOpen] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -58,8 +60,17 @@ function App() {
   }, []);
 
   const handleLogout = async () => {
+    if (user) {
+      await logActivity({
+        actorRole: user.role,
+        actorUid: user.uid,
+        actorEmail: user.email,
+        action: `${user.role}_logout`
+      });
+    }
     await signOut(auth);
     setUser(null);
+    setMemberPasswordOpen(false);
   };
 
   if (loadingAuth) {
@@ -135,9 +146,12 @@ function App() {
         mode="member"
         currentUser={user}
         onLogout={handleLogout}
+        onPasswordPanelChange={setMemberPasswordOpen}
         onPaymentSaved={() => setMemberHistoryRefreshKey((prev) => prev + 1)}
       />
-      <MemberHistory currentUser={user} refreshKey={memberHistoryRefreshKey} />
+      {!memberPasswordOpen && (
+        <MemberHistory currentUser={user} refreshKey={memberHistoryRefreshKey} />
+      )}
     </div>
   );
 }
